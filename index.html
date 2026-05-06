@@ -1,29 +1,84 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CÓDIGO ROJO v1.3</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CÓDIGO ROJO: BARRIO TOMADO</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
 
 <div id="menu">
-  <div class="panel">
+  <div class="menuBg"></div>
+  <div class="menuPanel">
+    <div class="gameTag">V1.3 · MODO HISTORIA · SINGLE PLAYER</div>
     <h1>CÓDIGO ROJO</h1>
-    <button id="playBtn">INICIAR</button>
+    <h2>BARRIO TOMADO</h2>
+    <p class="subtitle">Misiones · mapa urbano · bots pro · recoil · hitmarker · granadas</p>
+
+    <div class="menuStats">
+      <div><b>Modo</b><span>Historia</span></div>
+      <div><b>Misiones</b><span>6</span></div>
+      <div><b>Dificultad</b><span>Alta</span></div>
+    </div>
+
+    <button id="playBtn">INICIAR HISTORIA</button>
+
+    <div class="controls">
+      <p><b>WASD</b> mover · <b>Mouse</b> mirar · <b>Click</b> disparar · <b>R</b> recargar</p>
+      <p><b>Shift</b> correr · <b>Espacio</b> saltar · <b>Q</b> habilidad · <b>G</b> granada · <b>1-4</b> armas · <b>ESC</b> pausa</p>
+      <p class="version">v1.3 · creado por Bautista</p>
+    </div>
+  </div>
+</div>
+
+<div id="loading">
+  <div class="loadingBox">
+    <h2>Cargando barrio...</h2>
+    <div class="bar"><span></span></div>
+  </div>
+</div>
+
+<div id="pause">
+  <div class="pauseCard">
+    <h2>PAUSA</h2>
+    <p>ESC para volver al juego</p>
+    <button id="resumeBtn">CONTINUAR</button>
+    <button id="restartBtn">REINICIAR HISTORIA</button>
+  </div>
+</div>
+
+<div id="endScreen">
+  <div class="endCard">
+    <h2 id="endTitle">CÓDIGO ROJO COMPLETADO</h2>
+    <p id="endText">Barrio recuperado.</p>
+    <button id="endRestartBtn">VOLVER A JUGAR</button>
   </div>
 </div>
 
 <div id="hud">
-  VIDA <span id="hp">100</span> |
-  KILLS <span id="kills">0</span>
+  <div>Vida <span id="hp">100</span></div>
+  <div>Escudo <span id="shield">50</span></div>
+  <div>Arma <span id="weapon">Rifle R-21</span></div>
+  <div>Balas <span id="ammo">30</span>/<span id="reserve">90</span></div>
+  <div>Granadas <span id="grenades">2</span></div>
+  <div>Habilidad <span id="ability">Lista</span></div>
+  <div>Kills <span id="kills">0</span></div>
+  <div>Racha <span id="streak">0</span></div>
+  <div>Misión <span id="missionNumber">1</span>/6</div>
+</div>
+
+<div id="missionBox">
+  <div class="missionTitle" id="missionTitle">Misión 1</div>
+  <div class="missionText" id="missionText">Entrá al barrio.</div>
+  <div class="missionProgress" id="missionProgress">Objetivo pendiente</div>
 </div>
 
 <div id="crosshair"></div>
 <div id="hitmarker">✕</div>
-<div id="feed"></div>
+<div id="killFeed"></div>
+<div id="message"></div>
+<div id="damage"></div>
 
 <script type="module" src="main.js"></script>
 </body>
