@@ -11,10 +11,10 @@
 <div id="menu">
   <div class="menuBg"></div>
   <div class="menuPanel">
-    <div class="gameTag">V1.3 · MODO HISTORIA · SINGLE PLAYER</div>
+    <div class="gameTag">V1.4 · GAME FEEL UPDATE</div>
     <h1>CÓDIGO ROJO</h1>
     <h2>BARRIO TOMADO</h2>
-    <p class="subtitle">Misiones · mapa urbano · bots pro · recoil · hitmarker · granadas</p>
+    <p class="subtitle">Movimiento pro · disparos mejorados · IA más agresiva · boss modo dios</p>
 
     <div class="menuStats">
       <div><b>Modo</b><span>Historia</span></div>
@@ -26,8 +26,9 @@
 
     <div class="controls">
       <p><b>WASD</b> mover · <b>Mouse</b> mirar · <b>Click</b> disparar · <b>R</b> recargar</p>
-      <p><b>Shift</b> correr · <b>Espacio</b> saltar · <b>Q</b> habilidad · <b>G</b> granada · <b>1-4</b> armas · <b>ESC</b> pausa</p>
-      <p class="version">v1.3 · creado por Bautista</p>
+      <p><b>Shift</b> sprint · <b>C + Shift</b> slide · <b>Espacio</b> saltar · <b>Q</b> habilidad · <b>G</b> granada</p>
+      <p><b>1-4</b> armas · <b>ESC</b> pausa</p>
+      <p class="version">v1.4 · creado por Bautista</p>
     </div>
   </div>
 </div>
@@ -59,6 +60,7 @@
 <div id="hud">
   <div>Vida <span id="hp">100</span></div>
   <div>Escudo <span id="shield">50</span></div>
+  <div>Stamina <span id="stamina">100</span></div>
   <div>Arma <span id="weapon">Rifle R-21</span></div>
   <div>Balas <span id="ammo">30</span>/<span id="reserve">90</span></div>
   <div>Granadas <span id="grenades">2</span></div>
@@ -66,6 +68,11 @@
   <div>Kills <span id="kills">0</span></div>
   <div>Racha <span id="streak">0</span></div>
   <div>Misión <span id="missionNumber">1</span>/6</div>
+</div>
+
+<div id="bossBar">
+  <div id="bossName">JEFE DEL BARRIO</div>
+  <div class="bossHp"><span id="bossHpFill"></span></div>
 </div>
 
 <div id="missionBox">

@@ -40,15 +40,23 @@ let lastShot = 0;
 let recoil = 0;
 let cameraShake = 0;
 let audioCtx;
+let bossRef = null;
+
+let stamina = 100;
+let sliding = false;
+let slideTimer = 0;
+let slideDir = new THREE.Vector3();
+let cameraTilt = 0;
+let headBob = 0;
 
 const MAP_SIZE = 280;
 const MAP_HALF = MAP_SIZE / 2;
 
 const weapons = {
   pistol: { name: "P9 Compact", damage: 34, mag: 12, ammo: 12, reserve: 48, rate: 330, spread: 0.02, reload: 850, auto: false, recoil: 0.035, pellets: 1 },
-  rifle: { name: "Rifle R-21", damage: 29, mag: 30, ammo: 30, reserve: 90, rate: 120, spread: 0.018, reload: 1300, auto: true, recoil: 0.032, pellets: 1 },
+  rifle: { name: "Rifle R-21", damage: 29, mag: 30, ammo: 30, reserve: 90, rate: 115, spread: 0.018, reload: 1300, auto: true, recoil: 0.035, pellets: 1 },
   shotgun: { name: "Trueno 12", damage: 18, mag: 6, ammo: 6, reserve: 24, rate: 650, spread: 0.11, reload: 1500, auto: false, recoil: 0.08, pellets: 8 },
-  sniper: { name: "Halcón M1", damage: 95, mag: 5, ammo: 5, reserve: 20, rate: 900, spread: 0.004, reload: 1900, auto: false, recoil: 0.11, pellets: 1 }
+  sniper: { name: "Halcón M1", damage: 100, mag: 5, ammo: 5, reserve: 20, rate: 900, spread: 0.004, reload: 1900, auto: false, recoil: 0.11, pellets: 1 }
 };
 
 const menu = document.getElementById("menu");
@@ -63,6 +71,7 @@ const endRestartBtn = document.getElementById("endRestartBtn");
 
 const hpText = document.getElementById("hp");
 const shieldText = document.getElementById("shield");
+const staminaText = document.getElementById("stamina");
 const weaponText = document.getElementById("weapon");
 const ammoText = document.getElementById("ammo");
 const reserveText = document.getElementById("reserve");
@@ -80,6 +89,8 @@ const endTitle = document.getElementById("endTitle");
 const endText = document.getElementById("endText");
 const hitmarker = document.getElementById("hitmarker");
 const killFeed = document.getElementById("killFeed");
+const bossBar = document.getElementById("bossBar");
+const bossHpFill = document.getElementById("bossHpFill");
 
 playBtn.onclick = () => {
   initAudio();
@@ -124,8 +135,8 @@ function init() {
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(innerWidth, innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.shadowMap.enabled = false;
   document.body.appendChild(renderer.domElement);
 
   player = new THREE.Object3D();
@@ -149,8 +160,13 @@ function init() {
     if (e.code === "Digit4") switchWeapon("sniper");
 
     if (e.code === "Space" && canJump && started && hp > 0 && !playerDead) {
-      velocityY = 0.34;
+      velocityY = 0.39;
+      cameraShake += 0.025;
       canJump = false;
+    }
+
+    if (e.code === "KeyC" && started && !paused && !playerDead && !sliding && keys.ShiftLeft && stamina > 20) {
+      startSlide();
     }
   });
 
@@ -200,6 +216,10 @@ function resetStory() {
   currentWeapon = "rifle";
   playerDead = false;
   paused = false;
+  bossRef = null;
+  bossBar.style.display = "none";
+  stamina = 100;
+  sliding = false;
 
   resetWeapons();
   buildMap();
@@ -294,6 +314,8 @@ function clearWorld() {
   particles = [];
   objectives = [];
   colliders = [];
+  bossRef = null;
+  bossBar.style.display = "none";
 }
 
 function addMapObj(obj) {
@@ -308,11 +330,10 @@ function buildMap() {
   scene.background = new THREE.Color(0x8aa0ad);
   scene.fog = new THREE.Fog(0x8aa0ad, 120, 330);
 
-  addMapObj(new THREE.AmbientLight(0xffffff, 0.75));
+  addMapObj(new THREE.AmbientLight(0xffffff, 0.78));
 
-  const sun = new THREE.DirectionalLight(0xffffff, 1.3);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.15);
   sun.position.set(70, 120, 50);
-  sun.castShadow = true;
   addMapObj(sun);
 
   const floorMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.95 });
@@ -326,7 +347,6 @@ function buildMap() {
 
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE), floorMat);
   floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
   addMapObj(floor);
 
   box(0, 4, -MAP_HALF, MAP_SIZE, 8, 2, wallMat);
@@ -355,7 +375,7 @@ function buildMap() {
   box(-36, 1.3, 0, 2, 2.6, 52, redMat);
   box(36, 1.3, 0, 2, 2.6, 52, redMat);
 
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 46; i++) {
     box(Math.random() * 235 - 117, 1, Math.random() * 235 - 117, 2.5 + Math.random() * 2.5, 2, 2.5 + Math.random() * 2.5, crateMat);
   }
 
@@ -371,8 +391,6 @@ function buildMap() {
 function box(x, y, z, w, h, d, mat, solid = true) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   mesh.position.set(x, y, z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
   addMapObj(mesh);
 
   if (solid) {
@@ -420,7 +438,7 @@ function createAbandonedCar(x, z, i) {
 
   for (const sx of [-2.1, 2.1]) {
     for (const sz of [-1.1, 1.1]) {
-      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.3, 16), dark);
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.3, 12), dark);
       wheel.rotation.z = Math.PI / 2;
       wheel.position.set(sx, 0.35, sz);
       car.add(wheel);
@@ -439,6 +457,8 @@ function startMission(n) {
   missionKills = 0;
   missionTimer = 0;
   playerDead = false;
+  bossRef = null;
+  bossBar.style.display = "none";
 
   bots.forEach(b => scene.remove(b));
   bullets.forEach(b => scene.remove(b));
@@ -508,7 +528,7 @@ function setMissionUI(title, text, progress) {
 
 function createObjectiveZone(x, z, label) {
   const zone = new THREE.Mesh(
-    new THREE.CylinderGeometry(7, 7, 0.25, 32),
+    new THREE.CylinderGeometry(7, 7, 0.25, 24),
     new THREE.MeshBasicMaterial({ color: 0xff1744, transparent: true, opacity: 0.35 })
   );
 
@@ -547,13 +567,22 @@ function spawnEnemies(amount, centerZ) {
 
 function spawnBoss() {
   const boss = createBot("boss");
+
   boss.position.set(0, 0, -95);
-  boss.hp = 650;
-  boss.maxHp = 650;
+  boss.hp = 1000;
+  boss.maxHp = 1000;
   boss.role = "boss";
-  boss.scale.set(1.4, 1.4, 1.4);
+  boss.phase = 1;
+  boss.specialCooldown = 260;
+  boss.scale.set(1.7, 1.7, 1.7);
+
+  bossRef = boss;
+
   scene.add(boss);
   bots.push(boss);
+
+  bossBar.style.display = "block";
+  updateBossBar();
 }
 
 function createBot(team) {
@@ -609,7 +638,9 @@ function createBot(team) {
   bot.grenadeCooldown = 350 + Math.random() * 450;
   bot.walk = Math.random() * 10;
   bot.strafe = Math.random() > 0.5 ? 1 : -1;
-  bot.reaction = 14 + Math.random() * 22;
+  bot.reaction = 12 + Math.random() * 18;
+  bot.aiTick = Math.random() * 20;
+  bot.coverTarget = null;
 
   return bot;
 }
@@ -648,7 +679,7 @@ function createGun() {
   gun.add(body, barrel, mag, detail);
 
   if (scope) {
-    const sc = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.45, 18), dark);
+    const sc = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.45, 14), dark);
     sc.rotation.z = Math.PI / 2;
     sc.position.set(0.45, -0.08, -0.95);
     gun.add(sc);
@@ -710,13 +741,30 @@ function movePlayer() {
 
   dir.normalize();
 
-  let speed = keys.ShiftLeft ? 0.32 : 0.22;
-  if (abilityActive) speed *= 1.45;
-
   const old = player.position.clone();
+  const moving = dir.length() > 0;
+  const wantsSprint = keys.ShiftLeft && moving && stamina > 5 && !sliding;
 
-  player.position.x += dir.x * speed;
-  player.position.z += dir.z * speed;
+  let speed = 0.18;
+
+  if (wantsSprint) {
+    speed = 0.36;
+    stamina = Math.max(0, stamina - 0.45);
+  } else {
+    stamina = Math.min(100, stamina + 0.28);
+  }
+
+  if (abilityActive) speed *= 1.35;
+
+  if (sliding) {
+    player.position.x += slideDir.x * 0.58;
+    player.position.z += slideDir.z * 0.58;
+    slideTimer--;
+    if (slideTimer <= 0) sliding = false;
+  } else {
+    player.position.x += dir.x * speed;
+    player.position.z += dir.z * speed;
+  }
 
   player.position.x = Math.max(-MAP_HALF + 3, Math.min(MAP_HALF - 3, player.position.x));
   player.position.z = Math.max(-MAP_HALF + 3, Math.min(MAP_HALF - 3, player.position.z));
@@ -724,9 +772,10 @@ function movePlayer() {
   if (isColliding(player.position.x, player.position.z, 0.55)) {
     player.position.x = old.x;
     player.position.z = old.z;
+    sliding = false;
   }
 
-  velocityY -= 0.018;
+  velocityY -= 0.016;
   player.position.y += velocityY;
 
   if (player.position.y <= 2) {
@@ -734,7 +783,25 @@ function movePlayer() {
     velocityY = 0;
     canJump = true;
   }
+
+  if (moving && !sliding) headBob += wantsSprint ? 0.18 : 0.1;
+
+  const targetTilt = keys.KeyA ? 0.045 : keys.KeyD ? -0.045 : 0;
+  cameraTilt += (targetTilt - cameraTilt) * 0.08;
 }
+
+function startSlide() {
+  const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+
+  slideDir.copy(forward);
+  sliding = true;
+  slideTimer = 28;
+  stamina = Math.max(0, stamina - 18);
+  cameraShake += 0.04;
+
+  showMessage("SLIDE");
+}
+
 
 function isColliding(x, z, r) {
   return colliders.some(c => x + r > c.minX && x - r < c.maxX && z + r > c.minZ && z - r < c.maxZ);
@@ -755,34 +822,40 @@ function shoot() {
     return;
   }
 
+  if (bullets.length > 120) {
+    scene.remove(bullets[0]);
+    bullets.shift();
+  }
+
   lastShot = now;
   w.ammo--;
-  recoil += w.recoil * 1.45;
-  cameraShake += 0.035;
+  recoil += w.recoil * 1.65;
+  cameraShake += currentWeapon === "sniper" ? 0.08 : 0.042;
 
   playSound("shot");
+  createMuzzleFlash();
   createMuzzleSmoke();
 
   const shots = w.pellets || 1;
 
   for (let i = 0; i < shots; i++) {
     const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
-
     const movingPenalty = keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD ? 1.35 : 1;
+    const slidePenalty = sliding ? 1.8 : 1;
 
-    dir.x += (Math.random() - 0.5) * w.spread * movingPenalty;
-    dir.y += (Math.random() - 0.5) * w.spread * movingPenalty;
-    dir.z += (Math.random() - 0.5) * w.spread * movingPenalty;
+    dir.x += (Math.random() - 0.5) * w.spread * movingPenalty * slidePenalty;
+    dir.y += (Math.random() - 0.5) * w.spread * movingPenalty * slidePenalty;
+    dir.z += (Math.random() - 0.5) * w.spread * movingPenalty * slidePenalty;
     dir.normalize();
 
     const bullet = new THREE.Mesh(
-      new THREE.SphereGeometry(0.06, 8, 8),
+      new THREE.SphereGeometry(currentWeapon === "sniper" ? 0.075 : 0.06, 6, 6),
       new THREE.MeshBasicMaterial({ color: 0xffdd44 })
     );
 
     bullet.position.copy(camera.position).add(dir.clone().multiplyScalar(1.2));
     bullet.dir = dir;
-    bullet.life = 120;
+    bullet.life = currentWeapon === "sniper" ? 155 : 120;
     bullet.damage = abilityActive ? w.damage * 1.35 : w.damage;
     bullet.team = "player";
 
@@ -792,6 +865,7 @@ function shoot() {
 
   updateHud();
 }
+
 
 function reload() {
   const w = weapons[currentWeapon];
@@ -818,7 +892,7 @@ function throwGrenade() {
 
   const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
   const grenade = new THREE.Mesh(
-    new THREE.SphereGeometry(0.22, 12, 12),
+    new THREE.SphereGeometry(0.22, 10, 10),
     new THREE.MeshBasicMaterial({ color: 0x202020 })
   );
 
@@ -839,7 +913,7 @@ function botThrowGrenade(bot, targetPos) {
   dir.normalize();
 
   const grenade = new THREE.Mesh(
-    new THREE.SphereGeometry(0.22, 12, 12),
+    new THREE.SphereGeometry(0.22, 10, 10),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
 
@@ -884,7 +958,7 @@ function explode(pos, team) {
   cameraShake += 0.14;
 
   const boom = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 16, 16),
+    new THREE.SphereGeometry(1, 12, 12),
     new THREE.MeshBasicMaterial({ color: 0xff3344, transparent: true, opacity: 0.65 })
   );
 
@@ -912,6 +986,11 @@ function explode(pos, team) {
 }
 
 function updateBullets() {
+  if (bullets.length > 120) {
+    scene.remove(bullets[0]);
+    bullets.shift();
+  }
+
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
 
@@ -947,7 +1026,7 @@ function updateBullets() {
         let headshot = false;
 
         if (b.position.distanceTo(head) < 0.45) {
-          damage = b.damage * 2.35;
+          damage = b.damage * 2.45;
           headshot = true;
         } else if (b.position.distanceTo(body) < 0.85) {
           damage = b.damage;
@@ -991,38 +1070,49 @@ function updateBots() {
     const side = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(bot.strafe);
     const old = bot.position.clone();
 
+    bot.aiTick = (bot.aiTick || 0) - 1;
+    if (bot.aiTick <= 0) {
+      bot.aiTick = 18 + Math.random() * 18;
+      bot.coverTarget = findNearestCover(bot.position);
+      if (Math.random() < 0.35) bot.strafe *= -1;
+    }
+
     let moveSpeed = 0.048;
 
-    if (bot.role === "rush") moveSpeed = 0.082;
-    if (bot.role === "rifle") moveSpeed = 0.06;
-    if (bot.role === "sniper") moveSpeed = 0.04;
-    if (bot.role === "support") moveSpeed = 0.052;
-    if (bot.role === "boss") moveSpeed = 0.055;
+    if (bot.role === "rush") moveSpeed = 0.088;
+    if (bot.role === "rifle") moveSpeed = 0.064;
+    if (bot.role === "sniper") moveSpeed = 0.041;
+    if (bot.role === "support") moveSpeed = 0.055;
+
+    if (bot.role === "boss") {
+      moveSpeed = bot.phase === 2 ? 0.102 : 0.074;
+      if (Math.random() < (bot.phase === 2 ? 0.052 : 0.028)) botThrowGrenade(bot, player.position);
+    }
 
     const lowHp = bot.hp < bot.maxHp * 0.35;
-    const nearCover = findNearestCover(bot.position);
+    const nearCover = bot.coverTarget;
 
-    if (lowHp && nearCover) {
+    if (lowHp && nearCover && bot.role !== "boss") {
       const coverDir = new THREE.Vector3().subVectors(nearCover, bot.position);
       coverDir.y = 0;
       coverDir.normalize();
-      bot.position.add(coverDir.multiplyScalar(moveSpeed * 1.15));
-    } else if (lowHp) {
+      bot.position.add(coverDir.multiplyScalar(moveSpeed * 1.18));
+    } else if (lowHp && bot.role !== "boss") {
       bot.position.add(dir.clone().multiplyScalar(-moveSpeed));
       bot.position.add(side.clone().multiplyScalar(moveSpeed));
-    } else if (bot.role === "rush") {
-      if (dist > 8) bot.position.add(dir.clone().multiplyScalar(moveSpeed));
+    } else if (bot.role === "rush" || bot.role === "boss") {
+      if (dist > 7) bot.position.add(dir.clone().multiplyScalar(moveSpeed));
       else bot.position.add(side.clone().multiplyScalar(moveSpeed));
     } else if (bot.role === "sniper") {
-      if (dist < 45) bot.position.add(dir.clone().multiplyScalar(-moveSpeed));
-      else if (dist > 90) bot.position.add(dir.clone().multiplyScalar(moveSpeed * 0.7));
-      else bot.position.add(side.clone().multiplyScalar(moveSpeed * 0.55));
+      if (dist < 48) bot.position.add(dir.clone().multiplyScalar(-moveSpeed));
+      else if (dist > 100) bot.position.add(dir.clone().multiplyScalar(moveSpeed * 0.72));
+      else bot.position.add(side.clone().multiplyScalar(moveSpeed * 0.58));
     } else {
       if (dist > 24) bot.position.add(dir.clone().multiplyScalar(moveSpeed));
       else bot.position.add(side.clone().multiplyScalar(moveSpeed));
     }
 
-    if (Math.random() < 0.022) bot.strafe *= -1;
+    if (Math.random() < 0.024) bot.strafe *= -1;
 
     if (isColliding(bot.position.x, bot.position.z, 0.55)) {
       bot.position.copy(old);
@@ -1031,77 +1121,83 @@ function updateBots() {
 
     bot.lookAt(targetPos.x, bot.position.y, targetPos.z);
 
-    bot.walk += 0.24;
-    bot.legL.rotation.x = Math.sin(bot.walk) * 0.58;
-    bot.legR.rotation.x = -Math.sin(bot.walk) * 0.58;
-    bot.armL.rotation.x = -Math.sin(bot.walk) * 0.3;
-    bot.armR.rotation.x = Math.sin(bot.walk) * 0.3;
+    bot.walk += 0.25;
+    bot.legL.rotation.x = Math.sin(bot.walk) * 0.6;
+    bot.legR.rotation.x = -Math.sin(bot.walk) * 0.6;
+    bot.armL.rotation.x = -Math.sin(bot.walk) * 0.32;
+    bot.armR.rotation.x = Math.sin(bot.walk) * 0.32;
 
     bot.cooldown--;
     bot.grenadeCooldown--;
 
-    let range = 60;
+    let range = 62;
 
-    if (bot.role === "rush") range = 38;
-    if (bot.role === "rifle") range = 72;
-    if (bot.role === "sniper") range = 120;
-    if (bot.role === "support") range = 65;
-    if (bot.role === "boss") range = 95;
+    if (bot.role === "rush") range = 40;
+    if (bot.role === "rifle") range = 76;
+    if (bot.role === "sniper") range = 125;
+    if (bot.role === "support") range = 68;
+    if (bot.role === "boss") range = 100;
 
     if (bot.cooldown <= 0 && dist < range && !playerDead) {
       botShoot(bot, targetPos);
 
-      let cd = 75;
+      let cd = 70;
 
-      if (bot.role === "rush") cd = 38;
-      if (bot.role === "rifle") cd = 52;
-      if (bot.role === "sniper") cd = 105;
-      if (bot.role === "support") cd = 64;
-      if (bot.role === "boss") cd = 38;
+      if (bot.role === "rush") cd = 34;
+      if (bot.role === "rifle") cd = 48;
+      if (bot.role === "sniper") cd = 98;
+      if (bot.role === "support") cd = 60;
+      if (bot.role === "boss") cd = bot.phase === 2 ? 21 : 34;
 
-      bot.cooldown = Math.max(18, cd) + Math.random() * bot.reaction;
+      bot.cooldown = Math.max(16, cd) + Math.random() * bot.reaction;
     }
 
-    if (bot.grenadeCooldown <= 0 && dist > 16 && dist < 58 && Math.random() < 0.02 && !playerDead) {
+    if (bot.grenadeCooldown <= 0 && dist > 16 && dist < 60 && Math.random() < 0.025 && !playerDead) {
       botThrowGrenade(bot, targetPos);
-      bot.grenadeCooldown = 560 + Math.random() * 420;
+      bot.grenadeCooldown = 520 + Math.random() * 380;
     }
   }
 }
+
 
 function botShoot(bot, targetPos) {
   const dir = new THREE.Vector3().subVectors(targetPos, bot.position);
   dir.y = 1.2;
   dir.normalize();
 
-  let accuracy = 0.085;
+  let accuracy = 0.08;
   let damage = 8 + mission;
 
-  if (bot.role === "rush") { accuracy = 0.13; damage = 7 + mission; }
-  if (bot.role === "rifle") { accuracy = 0.065; damage = 9 + mission; }
-  if (bot.role === "sniper") { accuracy = 0.032; damage = 18 + mission * 1.5; }
-  if (bot.role === "support") { accuracy = 0.075; damage = 8 + mission; }
-  if (bot.role === "boss") { accuracy = 0.048; damage = 16 + mission * 2; }
+  if (bot.role === "rush") { accuracy = 0.125; damage = 7 + mission; }
+  if (bot.role === "rifle") { accuracy = 0.058; damage = 10 + mission; }
+  if (bot.role === "sniper") { accuracy = 0.028; damage = 19 + mission * 1.6; }
+  if (bot.role === "support") { accuracy = 0.07; damage = 8 + mission; }
+
+  if (bot.role === "boss") {
+    accuracy = bot.phase === 2 ? 0.03 : 0.044;
+    damage = bot.phase === 2 ? 25 + mission * 2.7 : 17 + mission * 2;
+  }
 
   dir.x += (Math.random() - 0.5) * accuracy;
   dir.z += (Math.random() - 0.5) * accuracy;
   dir.normalize();
 
   const bullet = new THREE.Mesh(
-    new THREE.SphereGeometry(bot.role === "sniper" ? 0.07 : 0.052, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
+    new THREE.SphereGeometry(bot.role === "sniper" ? 0.07 : 0.052, 6, 6),
+    new THREE.MeshBasicMaterial({ color: bot.role === "boss" ? 0xff3344 : 0xffffff })
   );
 
   bullet.position.copy(bot.position);
   bullet.position.y += 1.4;
   bullet.dir = dir;
-  bullet.life = bot.role === "sniper" ? 140 : 105;
+  bullet.life = bot.role === "sniper" ? 145 : 110;
   bullet.damage = damage;
   bullet.team = "enemy";
 
   scene.add(bullet);
   bullets.push(bullet);
 }
+
 
 function takeDamage(amount) {
   if (playerDead) return;
@@ -1143,6 +1239,12 @@ function killBot(bot, index, headshot = false) {
   scene.remove(bot);
   bots.splice(index, 1);
 
+  if (bot === bossRef) {
+    bossRef = null;
+    bossBar.style.display = "none";
+    bossDeathCinematic();
+  }
+
   createDeathParticles(bot.position);
 
   kills++;
@@ -1160,17 +1262,37 @@ function killBot(bot, index, headshot = false) {
   updateHud();
 }
 
-function createDeathParticles(pos) {
-  for (let i = 0; i < 12; i++) {
+function bossDeathCinematic() {
+  cameraShake += 0.35;
+  showMessage("JEFE ELIMINADO · BARRIO RECUPERADO");
+
+  for (let i = 0; i < 18; i++) {
     const p = new THREE.Mesh(
-      new THREE.SphereGeometry(0.06, 8, 8),
+      new THREE.SphereGeometry(0.08, 6, 6),
+      new THREE.MeshBasicMaterial({ color: 0xff3344 })
+    );
+
+    p.position.set(0, 2, -95);
+    p.vel = new THREE.Vector3((Math.random() - 0.5) * 0.28, Math.random() * 0.22, (Math.random() - 0.5) * 0.28);
+    p.life = 45;
+    scene.add(p);
+    particles.push(p);
+  }
+}
+
+function createDeathParticles(pos) {
+  if (particles.length > 120) return;
+
+  for (let i = 0; i < 8; i++) {
+    const p = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05, 6, 6),
       new THREE.MeshBasicMaterial({ color: 0xffffff })
     );
 
     p.position.copy(pos);
     p.position.y += 1.2;
     p.vel = new THREE.Vector3((Math.random() - 0.5) * 0.12, Math.random() * 0.12, (Math.random() - 0.5) * 0.12);
-    p.life = 30 + Math.random() * 20;
+    p.life = 24 + Math.random() * 14;
     scene.add(p);
     particles.push(p);
   }
@@ -1227,7 +1349,6 @@ function updateMissionLogic() {
     missionProgress.textContent = `Sobreviví: ${seconds}s`;
 
     if (missionTimer % 240 === 0) spawnEnemies(2, Math.random() > 0.5 ? -80 : 40);
-
     if (missionTimer <= 0) completeMission();
   }
 
@@ -1261,11 +1382,68 @@ function completeStory() {
   endScreen.style.display = "flex";
 }
 
+function updateBossBar() {
+  if (!bossRef || bossRef.hp <= 0) {
+    bossBar.style.display = "none";
+    return;
+  }
+
+  bossBar.style.display = "block";
+  const percent = Math.max(0, (bossRef.hp / bossRef.maxHp) * 100);
+  bossHpFill.style.width = percent + "%";
+}
+
+function updateBossMode() {
+  if (!bossRef || bossRef.hp <= 0 || playerDead || paused) return;
+
+  const hpPercent = bossRef.hp / bossRef.maxHp;
+
+  if (hpPercent <= 0.5 && bossRef.phase === 1) {
+    bossRef.phase = 2;
+    bossRef.scale.set(1.95, 1.95, 1.95);
+    bossRef.cooldown = 20;
+    bossRef.grenadeCooldown = 80;
+    cameraShake += 0.25;
+    showMessage("EL JEFE ENTRÓ EN FURIA");
+  }
+
+  bossRef.specialCooldown--;
+
+  if (bossRef.specialCooldown <= 0) {
+    bossSpecialAttack();
+    bossRef.specialCooldown = bossRef.phase === 2 ? 160 : 260;
+  }
+}
+
+function bossSpecialAttack() {
+  if (!bossRef) return;
+
+  showMessage("ATAQUE ESPECIAL DEL JEFE");
+  cameraShake += 0.18;
+
+  for (let i = 0; i < 7; i++) {
+    const angle = (i / 7) * Math.PI * 2;
+
+    const target = new THREE.Vector3(
+      bossRef.position.x + Math.sin(angle) * 18,
+      0,
+      bossRef.position.z + Math.cos(angle) * 18
+    );
+
+    botThrowGrenade(bossRef, target);
+  }
+}
+
 function updateCamera() {
-  camera.position.set(player.position.x, player.position.y + 1.45, player.position.z);
+  const bobAmount = sliding ? -0.32 : Math.sin(headBob) * 0.045;
+
+  camera.position.set(player.position.x, player.position.y + 1.45 + bobAmount, player.position.z);
   camera.rotation.order = "YXZ";
   camera.rotation.y = yaw;
   camera.rotation.x = pitch + recoil;
+  camera.rotation.z = cameraTilt;
+
+  if (sliding) camera.rotation.z += 0.055;
 
   if (cameraShake > 0) {
     camera.position.x += (Math.random() - 0.5) * cameraShake;
@@ -1275,18 +1453,28 @@ function updateCamera() {
 
   if (gun) {
     gun.position.z = -recoil * 8;
-    gun.position.y = Math.sin(performance.now() * 0.006) * 0.01;
+    gun.position.y = Math.sin(performance.now() * 0.006) * 0.012;
+
+    if (sliding) {
+      gun.position.y -= 0.09;
+      gun.rotation.z = 0.08;
+    } else {
+      gun.rotation.z *= 0.9;
+    }
+
     gun.rotation.x = -recoil * 0.9;
   }
 
   recoil *= 0.82;
 }
 
+
 function updateHud() {
   const w = weapons[currentWeapon];
 
   hpText.textContent = Math.floor(hp);
   shieldText.textContent = Math.floor(shield);
+  staminaText.textContent = Math.floor(stamina);
   weaponText.textContent = w.name;
   ammoText.textContent = w.ammo;
   reserveText.textContent = w.reserve;
@@ -1336,15 +1524,17 @@ function addKillFeed(text) {
 }
 
 function createBlood(pos) {
-  for (let i = 0; i < 9; i++) {
+  if (particles.length > 120) return;
+
+  for (let i = 0; i < 5; i++) {
     const p = new THREE.Mesh(
-      new THREE.SphereGeometry(0.045, 8, 8),
+      new THREE.SphereGeometry(0.04, 6, 6),
       new THREE.MeshBasicMaterial({ color: 0xaa001f })
     );
 
     p.position.copy(pos);
-    p.vel = new THREE.Vector3((Math.random() - 0.5) * 0.13, Math.random() * 0.1, (Math.random() - 0.5) * 0.13);
-    p.life = 24 + Math.random() * 14;
+    p.vel = new THREE.Vector3((Math.random() - 0.5) * 0.1, Math.random() * 0.08, (Math.random() - 0.5) * 0.1);
+    p.life = 20;
 
     scene.add(p);
     particles.push(p);
@@ -1352,15 +1542,17 @@ function createBlood(pos) {
 }
 
 function createSpark(pos) {
-  for (let i = 0; i < 6; i++) {
+  if (particles.length > 120) return;
+
+  for (let i = 0; i < 4; i++) {
     const p = new THREE.Mesh(
-      new THREE.SphereGeometry(0.035, 8, 8),
+      new THREE.SphereGeometry(0.03, 6, 6),
       new THREE.MeshBasicMaterial({ color: 0xffcc66 })
     );
 
     p.position.copy(pos);
     p.vel = new THREE.Vector3((Math.random() - 0.5) * 0.1, Math.random() * 0.08, (Math.random() - 0.5) * 0.1);
-    p.life = 14 + Math.random() * 8;
+    p.life = 12 + Math.random() * 6;
 
     scene.add(p);
     particles.push(p);
@@ -1368,10 +1560,12 @@ function createSpark(pos) {
 }
 
 function createMuzzleSmoke() {
+  if (particles.length > 120) return;
+
   const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
 
   const smoke = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 10, 10),
+    new THREE.SphereGeometry(0.12, 8, 8),
     new THREE.MeshBasicMaterial({ color: 0x777777, transparent: true, opacity: 0.35 })
   );
 
@@ -1382,6 +1576,25 @@ function createMuzzleSmoke() {
 
   scene.add(smoke);
   particles.push(smoke);
+}
+
+function createMuzzleFlash() {
+  if (particles.length > 120) return;
+
+  const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
+
+  const flash = new THREE.Mesh(
+    new THREE.SphereGeometry(currentWeapon === "sniper" ? 0.18 : 0.12, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xfff1a1, transparent: true, opacity: 0.9 })
+  );
+
+  flash.position.copy(camera.position).add(dir.multiplyScalar(1.15));
+  flash.vel = new THREE.Vector3();
+  flash.life = 4;
+  flash.grow = true;
+
+  scene.add(flash);
+  particles.push(flash);
 }
 
 function findNearestCover(pos) {
@@ -1418,6 +1631,8 @@ function animate() {
     updateParticles();
     updateAbility();
     updateMissionLogic();
+    updateBossMode();
+    updateBossBar();
     updateHud();
   } else {
     updateCamera();
