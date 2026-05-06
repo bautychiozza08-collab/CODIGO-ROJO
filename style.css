@@ -1,16 +1,15 @@
-body{margin:0;overflow:hidden;background:black;font-family:Arial}
+body{margin:0;overflow:hidden;background:#050000;font-family:Arial;color:white}
 
-#menu{position:fixed;inset:0;display:flex;justify-content:center;align-items:center;background:black;color:white}
-.menuPanel{text-align:center}
+#menu{position:fixed;inset:0;display:flex;justify-content:center;align-items:center;background:black}
+.panel{text-align:center}
 
-button{padding:15px 30px;font-size:18px;cursor:pointer}
+button{padding:15px 30px;font-size:20px}
 
-#hud{position:fixed;top:10px;left:10px;color:white}
+#hud{position:fixed;top:10px;left:10px}
 
 #crosshair{
 position:fixed;top:50%;left:50%;
-width:20px;height:20px;
-transform:translate(-50%,-50%);
+width:20px;height:20px;transform:translate(-50%,-50%);
 }
 #crosshair::before,#crosshair::after{
 content:"";position:absolute;background:white;
@@ -21,10 +20,13 @@ content:"";position:absolute;background:white;
 #hitmarker{
 position:fixed;top:50%;left:50%;
 transform:translate(-50%,-50%) scale(.5);
-font-size:40px;color:red;opacity:0;transition:.1s;
+font-size:40px;opacity:0;transition:.1s;
 }
 
-#killFeed{
-position:fixed;right:10px;top:100px;color:white;
+#feed{
+position:fixed;right:10px;top:100px;
 }
-.feedItem{background:rgba(0,0,0,.6);margin:5px;padding:5px}
+.feedItem{
+background:rgba(0,0,0,.6);
+margin:5px;padding:5px;
+}

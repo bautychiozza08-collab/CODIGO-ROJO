@@ -1,6 +1,8 @@
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 
 let scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8a8a8a);
+
 let camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
 let renderer=new THREE.WebGLRenderer();
 renderer.setSize(innerWidth,innerHeight);
@@ -10,20 +12,16 @@ let player=new THREE.Object3D();
 scene.add(player);
 scene.add(camera);
 
-let bullets=[];
-let bots=[];
-let keys={};
+let bullets=[],bots=[];
+let hp=100,kills=0,streak=0;
 
-let hp=100;
-let kills=0;
 let yaw=0,pitch=0;
 let shooting=false;
 let recoil=0;
-let cameraShake=0;
-let streak=0;
+let shake=0;
 
-const hitmarker=document.getElementById("hitmarker");
-const killFeed=document.getElementById("killFeed");
+const hit=document.getElementById("hitmarker");
+const feed=document.getElementById("feed");
 
 document.getElementById("playBtn").onclick=()=>{
  document.getElementById("menu").style.display="none";
@@ -40,22 +38,22 @@ document.addEventListener("mousedown",()=>shooting=true);
 document.addEventListener("mouseup",()=>shooting=false);
 
 function shoot(){
- recoil+=0.05;
- cameraShake+=0.05;
+ recoil+=0.06;
+ shake+=0.05;
 
  let dir=new THREE.Vector3(0,0,-1).applyEuler(camera.rotation);
 
- let bullet=new THREE.Mesh(
+ let b=new THREE.Mesh(
   new THREE.SphereGeometry(0.05),
   new THREE.MeshBasicMaterial({color:0xffff00})
  );
 
- bullet.position.copy(camera.position);
- bullet.dir=dir;
- bullet.life=100;
+ b.position.copy(camera.position);
+ b.dir=dir;
+ b.life=100;
 
- scene.add(bullet);
- bullets.push(bullet);
+ scene.add(b);
+ bullets.push(b);
 }
 
 function updateBullets(){
@@ -66,15 +64,13 @@ function updateBullets(){
   bots.forEach((bot,j)=>{
    if(b.position.distanceTo(bot.position)<1){
     bot.hp-=20;
-
-    showHitmarker();
-    createBlood(bot.position);
+    showHit();
+    blood(bot.position);
 
     if(bot.hp<=0){
      scene.remove(bot);
      bots.splice(j,1);
-     kills++;
-     streak++;
+     kills++;streak++;
      addFeed("ELIMINADO x"+streak);
     }
 
@@ -90,24 +86,34 @@ function updateBullets(){
  });
 }
 
-function showHitmarker(){
- hitmarker.style.opacity=1;
- hitmarker.style.transform="translate(-50%,-50%) scale(1.3)";
- setTimeout(()=>{
-  hitmarker.style.opacity=0;
-  hitmarker.style.transform="translate(-50%,-50%) scale(.5)";
- },100);
+function spawnBots(){
+ for(let i=0;i<8;i++){
+  let bot=new THREE.Mesh(
+   new THREE.BoxGeometry(1,2,1),
+   new THREE.MeshBasicMaterial({color:"white"})
+  );
+  bot.position.set(Math.random()*50-25,1,-50);
+  bot.hp=100;
+  scene.add(bot);
+  bots.push(bot);
+ }
 }
 
-function addFeed(text){
+function showHit(){
+ hit.style.opacity=1;
+ hit.style.transform="translate(-50%,-50%) scale(1.4)";
+ setTimeout(()=>{hit.style.opacity=0},80);
+}
+
+function addFeed(t){
  let d=document.createElement("div");
  d.className="feedItem";
- d.textContent=text;
- killFeed.prepend(d);
+ d.textContent=t;
+ feed.prepend(d);
  setTimeout(()=>d.remove(),2000);
 }
 
-function createBlood(pos){
+function blood(pos){
  for(let i=0;i<5;i++){
   let p=new THREE.Mesh(
    new THREE.SphereGeometry(0.05),
@@ -115,19 +121,6 @@ function createBlood(pos){
   );
   p.position.copy(pos);
   scene.add(p);
- }
-}
-
-function spawnBots(){
- for(let i=0;i<6;i++){
-  let bot=new THREE.Mesh(
-   new THREE.BoxGeometry(1,2,1),
-   new THREE.MeshBasicMaterial({color:"white"})
-  );
-  bot.position.set(Math.random()*20-10,1,-20);
-  bot.hp=100;
-  scene.add(bot);
-  bots.push(bot);
  }
 }
 
@@ -141,9 +134,9 @@ function animate(){
  camera.rotation.y=yaw;
  camera.rotation.x=pitch+recoil;
 
- if(cameraShake>0){
-  camera.position.x+=(Math.random()-0.5)*cameraShake;
-  cameraShake*=0.9;
+ if(shake>0){
+  camera.position.x+=(Math.random()-0.5)*shake;
+  shake*=0.9;
  }
 
  recoil*=0.9;
