@@ -2,91 +2,250 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CÓDIGO ROJO: BARRIO TOMADO</title>
-  <link rel="stylesheet" href="style.css" />
+
+  <link rel="stylesheet" href="style.css"/>
+
+  <!-- THREE JS -->
+  <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
 </head>
+
 <body>
 
+<!-- MENU -->
 <div id="menu">
-  <div class="menuBg"></div>
-  <div class="menuPanel">
-    <div class="gameTag">V1.4 · GAME FEEL UPDATE</div>
-    <h1>CÓDIGO ROJO</h1>
-    <h2>BARRIO TOMADO</h2>
-    <p class="subtitle">Movimiento pro · disparos mejorados · IA más agresiva · boss modo dios</p>
 
-    <div class="menuStats">
-      <div><b>Modo</b><span>Historia</span></div>
-      <div><b>Misiones</b><span>6</span></div>
-      <div><b>Dificultad</b><span>Alta</span></div>
+  <div class="menuOverlay"></div>
+
+  <div class="menuCard">
+
+    <div class="topText">
+      STEAM INDIE FPS · V1.5 TACTICAL UPDATE
     </div>
 
-    <button id="playBtn">INICIAR HISTORIA</button>
+    <h1>CÓDIGO ROJO</h1>
+
+    <h2>BARRIO TOMADO</h2>
+
+    <p class="subtitle">
+      Shooter táctico urbano · Boss fights · IA avanzada · Mobile support
+    </p>
+
+    <div class="menuGrid">
+
+      <div class="menuInfo">
+        <span>MODO</span>
+        <b>Historia</b>
+      </div>
+
+      <div class="menuInfo">
+        <span>MAPAS</span>
+        <b>Rotativos</b>
+      </div>
+
+      <div class="menuInfo">
+        <span>DIFICULTAD</span>
+        <b>Dios</b>
+      </div>
+
+    </div>
+
+    <button id="playBtn">
+      INICIAR OPERACIÓN
+    </button>
+
+    <button id="settingsBtn">
+      AJUSTES
+    </button>
 
     <div class="controls">
-      <p><b>WASD</b> mover · <b>Mouse</b> mirar · <b>Click</b> disparar · <b>R</b> recargar</p>
-      <p><b>Shift</b> sprint · <b>C + Shift</b> slide · <b>Espacio</b> saltar · <b>Q</b> habilidad · <b>G</b> granada</p>
-      <p><b>1-4</b> armas · <b>ESC</b> pausa</p>
-      <p class="version">v1.4 · creado por Bautista</p>
+
+      <p>
+        <b>WASD</b> mover ·
+        <b>Mouse</b> mirar ·
+        <b>Click</b> disparar
+      </p>
+
+      <p>
+        <b>Shift</b> correr ·
+        <b>C</b> slide ·
+        <b>Espacio</b> saltar
+      </p>
+
+      <p>
+        <b>Q</b> habilidad ·
+        <b>G</b> granada ·
+        <b>R</b> recargar
+      </p>
+
     </div>
+
   </div>
+
 </div>
 
-<div id="loading">
-  <div class="loadingBox">
-    <h2>Cargando barrio...</h2>
-    <div class="bar"><span></span></div>
-  </div>
-</div>
-
-<div id="pause">
-  <div class="pauseCard">
-    <h2>PAUSA</h2>
-    <p>ESC para volver al juego</p>
-    <button id="resumeBtn">CONTINUAR</button>
-    <button id="restartBtn">REINICIAR HISTORIA</button>
-  </div>
-</div>
-
-<div id="endScreen">
-  <div class="endCard">
-    <h2 id="endTitle">CÓDIGO ROJO COMPLETADO</h2>
-    <p id="endText">Barrio recuperado.</p>
-    <button id="endRestartBtn">VOLVER A JUGAR</button>
-  </div>
-</div>
-
+<!-- HUD -->
 <div id="hud">
+
   <div>Vida <span id="hp">100</span></div>
+
   <div>Escudo <span id="shield">50</span></div>
-  <div>Stamina <span id="stamina">100</span></div>
+
   <div>Arma <span id="weapon">Rifle R-21</span></div>
-  <div>Balas <span id="ammo">30</span>/<span id="reserve">90</span></div>
-  <div>Granadas <span id="grenades">2</span></div>
-  <div>Habilidad <span id="ability">Lista</span></div>
+
+  <div>Balas <span id="ammo">30</span></div>
+
   <div>Kills <span id="kills">0</span></div>
-  <div>Racha <span id="streak">0</span></div>
-  <div>Misión <span id="missionNumber">1</span>/6</div>
+
+  <div>Boss <span id="bossState">VIVO</span></div>
+
 </div>
 
-<div id="bossBar">
-  <div id="bossName">JEFE DEL BARRIO</div>
-  <div class="bossHp"><span id="bossHpFill"></span></div>
-</div>
-
-<div id="missionBox">
-  <div class="missionTitle" id="missionTitle">Misión 1</div>
-  <div class="missionText" id="missionText">Entrá al barrio.</div>
-  <div class="missionProgress" id="missionProgress">Objetivo pendiente</div>
-</div>
-
+<!-- CROSSHAIR -->
 <div id="crosshair"></div>
+
+<!-- HITMARKER -->
 <div id="hitmarker">✕</div>
-<div id="killFeed"></div>
-<div id="message"></div>
+
+<!-- DAMAGE -->
 <div id="damage"></div>
 
+<!-- MESSAGE -->
+<div id="message"></div>
+
+<!-- MINIMAP -->
+<canvas id="minimap"></canvas>
+
+<!-- BOSS BAR -->
+<div id="bossBar">
+
+  <div id="bossName">
+    JEFE DEL BARRIO
+  </div>
+
+  <div class="bossBarBg">
+    <div id="bossHpFill"></div>
+  </div>
+
+</div>
+
+<!-- SCOREBOARD -->
+<div id="scoreboard">
+
+  <div class="scoreCard">
+
+    <h1>MISIÓN COMPLETADA</h1>
+
+    <div class="scoreGrid">
+
+      <div>
+        <span>KILLS</span>
+        <b id="finalKills">0</b>
+      </div>
+
+      <div>
+        <span>RANGO</span>
+        <b id="finalRank">S</b>
+      </div>
+
+      <div>
+        <span>PRECISIÓN</span>
+        <b id="finalAccuracy">92%</b>
+      </div>
+
+      <div>
+        <span>RACHA</span>
+        <b id="finalStreak">0</b>
+      </div>
+
+    </div>
+
+    <button id="scoreRestart">
+      VOLVER A JUGAR
+    </button>
+
+  </div>
+
+</div>
+
+<!-- SETTINGS -->
+<div id="settingsPanel">
+
+  <div class="settingsCard">
+
+    <h2>AJUSTES</h2>
+
+    <label>
+      Sensibilidad
+
+      <input
+        id="sensInput"
+        type="range"
+        min="0.5"
+        max="3"
+        step="0.1"
+        value="1"
+      />
+    </label>
+
+    <label>
+      Volumen
+
+      <input
+        id="volumeInput"
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value="0.6"
+      />
+    </label>
+
+    <label>
+
+      Calidad
+
+      <select id="qualityInput">
+        <option value="high">Alta</option>
+        <option value="low">Baja</option>
+      </select>
+
+    </label>
+
+    <button id="closeSettings">
+      CERRAR
+    </button>
+
+  </div>
+
+</div>
+
+<!-- MOBILE -->
+<div id="mobileControls">
+
+  <div id="joystick">
+    <div id="stick"></div>
+  </div>
+
+  <button id="shootBtn">🔥</button>
+
+  <button id="jumpBtn">⬆</button>
+
+  <button id="reloadBtn">R</button>
+
+</div>
+
+<!-- MAIN -->
 <script type="module" src="main.js"></script>
+
 </body>
 </html>
